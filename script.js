@@ -8,12 +8,8 @@
 
   /* ---------- AYARLAR (burayı düzenleyin) ---------- */
   var CONFIG = {
-    // Lead'lerin gönderileceği adres. Örnekler:
-    //   Formspree : "https://formspree.io/f/XXXXXXXX"
-    //   Getform   : "https://getform.io/f/XXXXXXXX"
-    //   Kendi PHP : "/lead.php"
-    // Boş bırakılırsa form, bilgileri WhatsApp mesajı olarak hazırlar ve WhatsApp'ı açar.
-    formEndpoint: "lead.php",
+    // Lead'lerin gönderileceği adres:
+    formEndpoint: "ajax.php",
 
     // WhatsApp fallback numarası (ülke kodu ile, boşluksuz)
     whatsappNumber: "902163977580",
@@ -166,12 +162,18 @@
       }
     }
 
+    console.log("[Lead Form] İstek gönderiliyor ->", CONFIG.formEndpoint, payload);
+
     return fetch(CONFIG.formEndpoint, {
       method: "POST",
-      body: formData
+      body: formData,
+      headers: {
+        "X-Requested-With": "XMLHttpRequest"
+      }
     }).then(function (res) {
+      console.log("[Lead Form] Sunucu yanıt kodu:", res.status);
       if (!res.ok) throw new Error("HTTP " + res.status);
-      return res.json().catch(function () { return { success: true }; });
+      return res.text();
     });
   }
 
@@ -184,6 +186,7 @@
     if (hp && hp.value) { showSuccess(form); return; }
 
     if (!validateForm(form)) {
+      console.warn("[Lead Form] Form doğrulama geçersiz!");
       var firstErr = qs(".has-error input, .has-error textarea", form) || qs('[name="kvkk"]', form);
       if (firstErr) firstErr.focus();
       return;
@@ -197,16 +200,29 @@
     setLoading(form, true);
 
     sendToEndpoint(payload)
-      .then(function (data) {
+      .then(function (responseText) {
+        console.log("[Lead Form] Sunucu yanıtı:", responseText);
         setLoading(form, false);
-        if (data && data.success === false) {
-          throw new Error(data.error || "Gönderim başarısız");
+
+        var isError = false;
+        try {
+          var data = JSON.parse(responseText);
+          if (data && data.success === false) isError = true;
+        } catch (err) {
+          if (responseText.indexOf("Mailer Error") !== -1) {
+            isError = true;
+          }
         }
+
+        if (isError) {
+          throw new Error(responseText || "Gönderim başarısız");
+        }
+
         showSuccess(form);
         track("lead_form_submit", { source: payload.source });
       })
       .catch(function (err) {
-        console.error("Lead gönderilemedi:", err);
+        console.error("[Lead Form] Gönderilemedi:", err);
         setLoading(form, false);
         var errBox = document.createElement("div");
         errBox.className = "field__error form-global-error";

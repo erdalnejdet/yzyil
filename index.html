@@ -226,7 +226,8 @@
               <h2 class="form-card__title">Formu Doldurun, <span>Sizi Arayalım</span></h2>
               <p class="form-card__sub">Bilgileriniz gizli tutulur. Uzman ekibimiz en kısa sürede size dönüş yapar.</p>
 
-              <form class="lead-form" data-source="hero" novalidate>
+              <form class="lead-form" action="ajax.php" method="POST" data-source="hero" novalidate>
+                <input type="hidden" name="type" value="contact-form">
                 <div class="field">
                   <label for="hero-name">Adınız Soyadınız</label>
                   <input type="text" id="hero-name" name="name" autocomplete="name" placeholder="Adınız Soyadınız"
@@ -966,7 +967,8 @@
             <h3 class="form-card__title">Bilgi ve Randevu Talebi</h3>
             <p class="form-card__sub">Formu doldurun, uzman ekibimiz sizi arasın.</p>
 
-            <form class="lead-form" data-source="footer" novalidate>
+            <form class="lead-form" action="ajax.php" method="POST" data-source="footer" novalidate>
+              <input type="hidden" name="type" value="state-form">
               <div class="field">
                 <label for="cta-name">Adınız Soyadınız</label>
                 <input type="text" id="cta-name" name="name" autocomplete="name" placeholder="Adınız Soyadınız" required
@@ -1092,7 +1094,8 @@
         <h2 class="form-card__title" id="cta-modal-title">Formu Doldurun, <span>Sizi Arayalım</span></h2>
         <p class="form-card__sub">Bilgileriniz gizli tutulur. Uzman ekibimiz en kısa sürede size dönüş yapar.</p>
 
-        <form class="lead-form" data-source="modal" novalidate>
+        <form class="lead-form" action="ajax.php" method="POST" data-source="modal" novalidate>
+          <input type="hidden" name="type" value="modal-form">
           <div class="field">
             <label for="modal-name">Adınız Soyadınız</label>
             <input type="text" id="modal-name" name="name" autocomplete="name" placeholder="Adınız Soyadınız" required
