@@ -105,14 +105,20 @@
   function buildPayload(form) {
     var phoneDigits = normalizePhoneDigits(qs('[name="phone"]', form).value);
     var msgEl = qs('[name="message"]', form);
+    var emailEl = qs('[name="email"]', form);
+    var sourceVal = form.getAttribute("data-source") || "contact-form";
     return {
       name: qs('[name="name"]', form).value.trim(),
       phone: formatPhone(phoneDigits),
       phone_e164: "+9" + phoneDigits, // 0532... -> +90532...
+      tel: formatPhone(phoneDigits),
+      telefon: formatPhone(phoneDigits),
+      email: emailEl ? emailEl.value.trim() : "",
       message: msgEl ? msgEl.value.trim() : "",
       kvkk: true,
-      source: form.getAttribute("data-source") || "form",
-      campaign: CONFIG.campaign,
+      source: sourceVal,
+      type: sourceVal === "modal" ? "modal-form" : "contact-form",
+      url: window.location.href,
       page: window.location.href,
       referrer: document.referrer || "",
       utm: getUtmParams(),
@@ -149,26 +155,24 @@
   }
 
   function sendToEndpoint(payload) {
+    var formData = new FormData();
+    for (var key in payload) {
+      if (payload.hasOwnProperty(key)) {
+        if (typeof payload[key] === "object") {
+          formData.append(key, JSON.stringify(payload[key]));
+        } else {
+          formData.append(key, payload[key]);
+        }
+      }
+    }
+
     return fetch(CONFIG.formEndpoint, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Accept": "application/json" },
-      body: JSON.stringify(payload)
+      body: formData
     }).then(function (res) {
       if (!res.ok) throw new Error("HTTP " + res.status);
-      return res;
+      return res.json().catch(function () { return { success: true }; });
     });
-  }
-
-  function openWhatsAppWithLead(payload) {
-    var lines = [
-      "Merhaba, isteğe bağlı kürtaj hakkında bilgi almak istiyorum.",
-      "",
-      "Ad Soyad: " + payload.name,
-      "Telefon: " + payload.phone
-    ];
-    if (payload.message) lines.push("Mesaj: " + payload.message);
-    var url = "https://wa.me/" + CONFIG.whatsappNumber + "?text=" + encodeURIComponent(lines.join("\n"));
-    window.open(url, "_blank", "noopener");
   }
 
   function handleSubmit(e) {
@@ -185,28 +189,42 @@
       return;
     }
 
+    // Varsa önceki genel hata mesajını temizle
+    var existingErr = qs(".form-global-error", form);
+    if (existingErr) existingErr.remove();
+
     var payload = buildPayload(form);
     setLoading(form, true);
 
-    var done = function () {
-      setLoading(form, false);
-      showSuccess(form);
-      track("lead_form_submit", { source: payload.source });
-    };
-
-    if (CONFIG.formEndpoint) {
-      sendToEndpoint(payload).then(done).catch(function (err) {
+    sendToEndpoint(payload)
+      .then(function (data) {
+        setLoading(form, false);
+        if (data && data.success === false) {
+          throw new Error(data.error || "Gönderim başarısız");
+        }
+        showSuccess(form);
+        track("lead_form_submit", { source: payload.source });
+      })
+      .catch(function (err) {
         console.error("Lead gönderilemedi:", err);
         setLoading(form, false);
-        // Endpoint hata verdiyse lead'i kaybetmemek için WhatsApp'a yönlendir
-        openWhatsAppWithLead(payload);
-        showSuccess(form);
-        track("lead_form_fallback_whatsapp", { source: payload.source });
+        var errBox = document.createElement("div");
+        errBox.className = "field__error form-global-error";
+        errBox.style.marginTop = "12px";
+        errBox.style.padding = "8px 12px";
+        errBox.style.borderRadius = "6px";
+        errBox.style.backgroundColor = "#fee2e2";
+        errBox.style.color = "#b91c1c";
+        errBox.style.fontSize = "14px";
+        errBox.style.textAlign = "center";
+        errBox.textContent = "Mesajınız iletilirken bir hata oluştu. Lütfen tekrar deneyiniz veya bizi doğrudan telefonla arayınız.";
+        var btn = qs('button[type="submit"]', form);
+        if (btn && btn.parentNode) {
+          btn.parentNode.insertBefore(errBox, btn.nextSibling);
+        } else {
+          form.appendChild(errBox);
+        }
       });
-    } else {
-      openWhatsAppWithLead(payload);
-      done();
-    }
   }
 
   function initForms() {
